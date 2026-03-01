@@ -1,0 +1,150 @@
+<section class="space-y-6">
+  <div class="flex items-start justify-between">
+    <div>
+      <div class="flex items-center gap-2 text-xs text-slate-400">
+        <a class="text-blue-400" routerLink="/app/workspaces">Workspaces</a>
+        <span>/</span>
+        <a *ngIf="workspaceId" class="text-blue-400" [routerLink]="['/app/workspaces', workspaceId]">
+          {{ workspaceName || workspaceId }}
+        </a>
+        <span *ngIf="workspaceId">/</span>
+        <a *ngIf="projectId" class="text-blue-400" [routerLink]="['/app/projects', projectId, 'folders']">
+          {{ projectName || projectId }}
+        </a>
+        <span *ngIf="projectId">/</span>
+        <a *ngIf="document?.folderId" class="text-blue-400" [routerLink]="['/app/folders', document?.folderId, 'documents']">
+          {{ folderName || document?.folderId }}
+        </a>
+        <span>/</span>
+        <span>{{ document?.title ?? 'Detalle' }}</span>
+      </div>
+      <h1 class="mt-2 text-2xl font-semibold text-white">{{ document?.title ?? 'Detalle' }}</h1>
+    </div>
+    <a class="text-sm text-blue-400" routerLink="/app/workspaces">Volver</a>
+  </div>
+
+  <div *ngIf="!document" class="rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-slate-300">
+    <p>No se pudo cargar el documento.</p>
+    <p *ngIf="documentError" class="mt-2 text-sm text-amber-300">{{ documentError }}</p>
+    <button class="mt-3 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200" type="button" (click)="retryLoad()">
+      Reintentar
+    </button>
+  </div>
+
+  <div *ngIf="document" class="grid gap-4 md:grid-cols-2">
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <p class="text-xs text-slate-400">ID</p>
+      <p class="mt-1 text-sm text-white">{{ document.id }}</p>
+      <p class="mt-4 text-xs text-slate-400">Carpeta</p>
+      <p class="mt-1 text-sm text-white">{{ document.folderId }}</p>
+    </div>
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <p class="text-xs text-slate-400">Última actualización</p>
+      <p class="mt-1 text-sm text-white">{{ document.updatedAt | date: 'yyyy-MM-dd HH:mm' }}</p>
+      <p class="mt-4 text-xs text-slate-400">Rol</p>
+      <p class="mt-1 text-sm text-white">{{ document.userRole }}</p>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-white">Contenido actual</h2>
+      <span class="text-xs text-slate-400">{{ contentVersionLabel }}</span>
+    </div>
+    <p *ngIf="contentError" class="mt-2 text-sm text-amber-300">{{ contentError }}</p>
+    <div *ngIf="!contentError && !content" class="mt-4 text-sm text-slate-400">
+      Sin contenido disponible.
+    </div>
+    <div *ngIf="contentHtml" class="mt-4 w-full">
+      <div class="mx-auto max-w-[880px] rounded-xl border border-slate-200 bg-white shadow">
+        <div class="px-10 py-12" [innerHTML]="contentHtml"></div>
+      </div>
+    </div>
+    <pre *ngIf="content && !contentHtml" class="mt-4 whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-4 text-xs text-slate-700">
+{{ content | json }}
+    </pre>
+  </div>
+
+  <div *ngIf="document?.userRole === 'editor'">
+    <app-document-editor-panel [docId]="docId" [canEdit]="true" [initialContent]="content"></app-document-editor-panel>
+  </div>
+
+  <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-white">Versiones</h2>
+      <span class="text-xs text-slate-400">{{ versions.length }} total</span>
+    </div>
+    <p *ngIf="versionsError" class="mt-2 text-sm text-amber-300">{{ versionsError }}</p>
+    <div *ngIf="!versionsError && versions.length === 0" class="mt-4 text-sm text-slate-400">
+      Sin versiones registradas.
+    </div>
+    <div *ngIf="document?.userRole === 'editor'" class="mt-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
+      <p class="text-sm font-semibold text-white">Crear versión</p>
+      <p *ngIf="versionSaveError" class="mt-2 text-sm text-rose-300">{{ versionSaveError }}</p>
+      <p *ngIf="versionSaveStatus" class="mt-2 text-sm text-emerald-300">{{ versionSaveStatus }}</p>
+      <div class="mt-3 grid gap-3 md:grid-cols-2">
+        <div>
+          <label class="text-xs text-slate-400">Nombre</label>
+          <input
+            class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-white"
+            type="text"
+            [(ngModel)]="versionName"
+          />
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Comentario</label>
+          <input
+            class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-white"
+            type="text"
+            [(ngModel)]="versionComment"
+          />
+        </div>
+      </div>
+      <label class="mt-3 flex items-center gap-2 text-xs text-slate-300">
+        <input type="checkbox" [(ngModel)]="versionMarkAsCurrent" />
+        Marcar como actual
+      </label>
+      <div class="mt-4 flex justify-end">
+        <button class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" type="button" (click)="createVersion()">
+          Guardar versión
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="versions.length > 0" class="mt-4 space-y-3">
+      <div
+        *ngFor="let version of versions"
+        class="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/70 px-4 py-3"
+      >
+        <div>
+          <p class="text-sm font-semibold text-white">{{ version.name }}</p>
+          <p class="text-xs text-slate-400">
+            {{ version.createdAt | date: 'yyyy-MM-dd HH:mm' }} ·
+            {{ version.createdBy?.fullName ?? 'Sistema' }}
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button
+            *ngIf="document?.userRole === 'editor' && !version.isCurrent"
+            class="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-200"
+            type="button"
+            (click)="setCurrentVersion(version.id)"
+          >
+            Marcar actual
+          </button>
+          <span
+            class="rounded-full px-3 py-1 text-xs"
+            [class.bg-blue-600]="version.isCurrent"
+            [class.text-white]="version.isCurrent"
+            [class.bg-slate-800]="!version.isCurrent"
+            [class.text-slate-200]="!version.isCurrent"
+          >
+            {{ version.isCurrent ? 'Actual' : 'Histórica' }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <app-document-diff-panel [docId]="docId" [versions]="versions"></app-document-diff-panel>
+</section>

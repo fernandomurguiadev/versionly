@@ -1,0 +1,75 @@
+<section class="space-y-6">
+  <div class="flex items-start justify-between">
+    <div>
+      <div class="flex items-center gap-2 text-xs text-slate-400">
+        <a class="text-blue-400" routerLink="/app/workspaces">Workspaces</a>
+        <span>/</span>
+        <a *ngIf="workspaceId" class="text-blue-400" [routerLink]="['/app/workspaces', workspaceId]">
+          {{ workspaceName || workspaceId }}
+        </a>
+        <span *ngIf="workspaceId">/</span>
+        <span>{{ projectName || projectId }}</span>
+      </div>
+      <h1 class="mt-2 text-2xl font-semibold text-white">Carpetas · {{ projectName || projectId }}</h1>
+    </div>
+    <button
+      class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+      type="button"
+      (click)="openFolderModal()"
+    >
+      Nueva carpeta
+    </button>
+  </div>
+
+  <div *ngIf="folders.length === 0" class="rounded-xl border border-dashed border-slate-800 bg-slate-900/60 p-6 text-center">
+    <p class="text-sm text-slate-300">Este proyecto aún no tiene carpetas.</p>
+    <button class="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" type="button" (click)="openFolderModal()">
+      Crear primera carpeta
+    </button>
+  </div>
+
+  <div *ngIf="folders.length > 0" class="grid gap-4 md:grid-cols-2">
+    <a
+      *ngFor="let folder of folders"
+      [routerLink]="['/app/folders', folder.id, 'documents']"
+      class="rounded-xl border border-slate-800 bg-slate-900/70 p-4 transition hover:border-blue-500"
+    >
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-white">{{ folder.name }}</h2>
+          <p class="text-sm text-slate-400">Actualizado {{ folder.updatedAt }}</p>
+        </div>
+        <div class="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">
+          {{ folder.documentCount }} documentos
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div
+    *ngIf="isFolderModalOpen"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
+  >
+    <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <h2 class="text-lg font-semibold text-white">Crear carpeta</h2>
+      <p class="mt-1 text-sm text-slate-400">Define un nombre para la carpeta.</p>
+      <div class="mt-4">
+        <label class="text-sm text-slate-300" for="folder-name">Nombre</label>
+        <input
+          id="folder-name"
+          class="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+          type="text"
+          [(ngModel)]="folderName"
+        />
+      </div>
+      <div class="mt-6 flex justify-end gap-2">
+        <button class="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200" type="button" (click)="closeFolderModal()">
+          Cancelar
+        </button>
+        <button class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" type="button" (click)="submitFolder()">
+          Crear
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

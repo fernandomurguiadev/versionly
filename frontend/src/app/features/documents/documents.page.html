@@ -1,0 +1,174 @@
+<section class="space-y-6">
+  <div class="flex items-start justify-between">
+    <div>
+      <div class="flex items-center gap-2 text-xs text-slate-400">
+        <a class="text-blue-400" routerLink="/app/workspaces">Workspaces</a>
+        <span>/</span>
+        <a *ngIf="workspaceId" class="text-blue-400" [routerLink]="['/app/workspaces', workspaceId]">
+          {{ workspaceName || workspaceId }}
+        </a>
+        <span *ngIf="workspaceId">/</span>
+        <a *ngIf="projectId" class="text-blue-400" [routerLink]="['/app/projects', projectId, 'folders']">
+          {{ projectName || projectId }}
+        </a>
+        <span *ngIf="projectId">/</span>
+        <span>{{ folderName || folderId }}</span>
+      </div>
+      <h1 class="mt-2 text-2xl font-semibold text-white">Documentos · {{ folderName || folderId }}</h1>
+      <p class="mt-1 text-sm text-slate-400">{{ documentCount }} documentos</p>
+    </div>
+    <button
+      class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+      type="button"
+      (click)="openDocumentModal()"
+    >
+      Nuevo documento
+    </button>
+  </div>
+
+  <div *ngIf="documents.length === 0" class="rounded-xl border border-dashed border-slate-800 bg-slate-900/60 p-6 text-center">
+    <p class="text-sm text-slate-300">Esta carpeta aún no tiene documentos.</p>
+    <button class="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" type="button" (click)="openDocumentModal()">
+      Crear documento
+    </button>
+  </div>
+
+  <div *ngIf="documents.length > 0" class="grid gap-4">
+    <div
+      *ngFor="let doc of documents"
+      class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 p-4"
+    >
+      <a
+        [routerLink]="['/app/documents', doc.id]"
+        class="flex-1"
+      >
+        <div>
+          <h2 class="text-lg font-semibold text-white">{{ doc.title }}</h2>
+          <p class="text-sm text-slate-400">Actualizado {{ doc.updatedAt }}</p>
+        </div>
+      </a>
+      <div class="flex items-center gap-2">
+        <span class="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">{{ doc.status }}</span>
+        <div class="relative">
+          <button
+            class="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-200"
+            type="button"
+            (click)="openActionModal(doc, 'rename')"
+          >
+            Renombrar
+          </button>
+          <button
+            class="ml-2 rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-200"
+            type="button"
+            (click)="openActionModal(doc, 'move')"
+          >
+            Mover
+          </button>
+          <button
+            class="ml-2 rounded-lg border border-rose-700 px-3 py-1 text-xs text-rose-200"
+            type="button"
+            (click)="openActionModal(doc, 'delete')"
+          >
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    *ngIf="isActionModalOpen"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
+  >
+    <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <h2 class="text-lg font-semibold text-white" *ngIf="actionMode === 'rename'">Renombrar documento</h2>
+      <h2 class="text-lg font-semibold text-white" *ngIf="actionMode === 'move'">Mover documento</h2>
+      <h2 class="text-lg font-semibold text-white" *ngIf="actionMode === 'delete'">Eliminar documento</h2>
+      <p class="mt-1 text-sm text-slate-400" *ngIf="actionMode === 'rename'">Cambia el título del documento.</p>
+      <p class="mt-1 text-sm text-slate-400" *ngIf="actionMode === 'move'">Selecciona la carpeta destino.</p>
+      <p class="mt-1 text-sm text-rose-300" *ngIf="actionMode === 'delete'">Esta acción no puede deshacerse.</p>
+
+      <p *ngIf="actionError" class="mt-2 text-sm text-rose-300">{{ actionError }}</p>
+      <p *ngIf="actionStatus" class="mt-2 text-sm text-emerald-300">{{ actionStatus }}</p>
+
+      <div class="mt-4" *ngIf="actionMode === 'rename'">
+        <label class="text-sm text-slate-300" for="rename-title">Título</label>
+        <input
+          id="rename-title"
+          class="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+          type="text"
+          [(ngModel)]="renameTitle"
+        />
+      </div>
+
+      <div class="mt-4" *ngIf="actionMode === 'move'">
+        <label class="text-sm text-slate-300">Carpeta destino</label>
+        <select
+          class="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+          [(ngModel)]="moveFolderId"
+        >
+          <option [ngValue]="''" disabled>Selecciona una carpeta...</option>
+          <option *ngFor="let folder of moveFolders" [ngValue]="folder.id">{{ folder.name }}</option>
+        </select>
+        <p class="mt-2 text-xs text-slate-400" *ngIf="isMoveLoading">Cargando carpetas...</p>
+      </div>
+
+      <div class="mt-6 flex justify-end gap-2">
+        <button class="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200" type="button" (click)="closeActionModal()">
+          Cancelar
+        </button>
+        <button
+          *ngIf="actionMode === 'rename'"
+          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+          type="button"
+          (click)="submitRename()"
+        >
+          Guardar
+        </button>
+        <button
+          *ngIf="actionMode === 'move'"
+          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+          type="button"
+          (click)="submitMove()"
+        >
+          Mover
+        </button>
+        <button
+          *ngIf="actionMode === 'delete'"
+          class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
+          type="button"
+          (click)="submitDelete()"
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div
+    *ngIf="isDocumentModalOpen"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
+  >
+    <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <h2 class="text-lg font-semibold text-white">Crear documento</h2>
+      <p class="mt-1 text-sm text-slate-400">Define el título del documento.</p>
+      <div class="mt-4">
+        <label class="text-sm text-slate-300" for="document-title">Título</label>
+        <input
+          id="document-title"
+          class="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+          type="text"
+          [(ngModel)]="documentTitle"
+        />
+      </div>
+      <div class="mt-6 flex justify-end gap-2">
+        <button class="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200" type="button" (click)="closeDocumentModal()">
+          Cancelar
+        </button>
+        <button class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" type="button" (click)="submitDocument()">
+          Crear
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

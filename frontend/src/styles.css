@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg-0: #000010;
+  --bg-1: #050b16;
+  --surface-1: #0f172a;
+  --surface-2: #111827;
+  --border-1: #1e293b;
+  --border-2: #2a3347;
+  --text-1: #e6eaf2;
+  --text-2: #b0b0b0;
+  --primary-600: #2050e0;
+  --primary-700: #2060e0;
+  --shadow-1: 0 24px 64px rgba(3, 8, 20, 0.5);
+  --radius-1: 12px;
+  --radius-2: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: radial-gradient(ellipse at top, #0f1a2e 0%, #060b14 70%);
+  color: var(--text-1);
+}
+
+a {
+  color: var(--primary-700);
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.container {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-2);
+  padding: 32px 24px;
+  box-shadow: var(--shadow-1);
+}
+
+.auth-card h1 {
+  font-size: 26px;
+  margin: 0 0 8px;
+}
+
+.auth-card p {
+  margin: 0 0 20px;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.auth-field label {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.auth-field input {
+  background: #1e293b;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--text-1);
+  font-size: 14px;
+}
+
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.auth-primary {
+  background: var(--primary-600);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.auth-secondary {
+  border: 1px solid var(--border-1);
+  color: var(--text-1);
+  border-radius: 10px;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.auth-footer {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: center;
+}
+
+@media (min-width: 600px) {
+  .auth-card {
+    padding: 40px 48px;
+  }
+}
+
+@media (min-width: 600px) {
+  .container {
+    padding: 0 28px;
+  }
+}
+
+@media (min-width: 960px) {
+  .container {
+    max-width: 1100px;
+  }
+}

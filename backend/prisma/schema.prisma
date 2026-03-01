@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextIndex"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+  admin
+  editor
+  viewer
+
+  @@map("workspace_role")
+}
+
+enum WorkspaceInvitationRole {
+  editor
+  viewer
+
+  @@map("workspace_invitation_role")
+}
+
+enum DocumentRole {
+  editor
+  viewer
+
+  @@map("document_role")
+}
+
+enum VersionSource {
+  manual
+  import
+  merge
+
+  @@map("version_source")
+}
+
+enum ShareMode {
+  fixed
+  dynamic
+
+  @@map("share_mode")
+}
+
+enum NotificationType {
+  new_current_version
+  save_conflict
+  member_invited
+
+  @@map("notification_type")
+}
+
+model User {
+  id              String               @id @db.Char(36)
+  email           String               @unique @db.VarChar(255)
+  passwordHash    String               @map("password_hash") @db.Text
+  fullName        String?              @map("full_name") @db.VarChar(255)
+  emailVerifiedAt DateTime?            @map("email_verified_at") @db.DateTime(6)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt       DateTime             @updatedAt @map("updated_at") @db.DateTime(6)
+
+  passwordResetTokens PasswordResetToken[]
+  refreshTokens       RefreshToken[]
+  workspacesCreated   Workspace[]           @relation("WorkspaceCreatedBy")
+  workspaceMembers    WorkspaceMember[]
+  invitationsCreated  WorkspaceInvitation[] @relation("WorkspaceInvitationCreatedBy")
+  documentsCreated    Document[]            @relation("DocumentCreatedBy")
+  documentMembers     DocumentMember[]
+  draftsUpdated       DocumentDraft[]       @relation("DocumentDraftUpdatedBy")
+  versionsCreated     DocumentVersion[]     @relation("DocumentVersionCreatedBy")
+  assetsUploaded      DocumentAsset[]       @relation("DocumentAssetUploadedBy")
+  sharedLinksCreated  SharedLink[]          @relation("SharedLinkCreatedBy")
+  notifications       Notification[]
+
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @db.Char(36)
+  userId    String    @map("user_id") @db.Char(36)
+  token     String    @unique @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.DateTime(6)
+  usedAt    DateTime? @map("used_at") @db.DateTime(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_prt_user_id")
+  @@index([expiresAt], map: "idx_prt_expires_at")
+  @@map("password_reset_tokens")
+}
+
+model Workspace {
+  id        String   @id @db.Char(36)
+  name      String   @db.VarChar(255)
+  createdBy String?  @map("created_by") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+
+  createdByUser User?             @relation("WorkspaceCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  members       WorkspaceMember[]
+  invitations   WorkspaceInvitation[]
+  projects      Project[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @db.Char(36)
+  workspaceId String        @map("workspace_id") @db.Char(36)
+  userId      String        @map("user_id") @db.Char(36)
+  role        WorkspaceRole
+  createdAt   DateTime      @default(now()) @map("created_at") @db.DateTime(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId], map: "uq_workspace_members")
+  @@map("workspace_members")
+}
+
+model WorkspaceInvitation {
+  id          String                 @id @db.Char(36)
+  workspaceId String                 @map("workspace_id") @db.Char(36)
+  email       String                 @db.VarChar(255)
+  role        WorkspaceInvitationRole
+  token       String                 @unique @db.VarChar(255)
+  expiresAt   DateTime               @map("expires_at") @db.DateTime(6)
+  acceptedAt  DateTime?              @map("accepted_at") @db.DateTime(6)
+  createdBy   String?                @map("created_by") @db.Char(36)
+  createdAt   DateTime               @default(now()) @map("created_at") @db.DateTime(6)
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdByUser User?     @relation("WorkspaceInvitationCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, email], map: "uq_wi_workspace_email")
+  @@index([expiresAt], map: "idx_wi_expires_at")
+  @@map("workspace_invitations")
+}
+
+model Project {
+  id          String   @id @db.Char(36)
+  workspaceId String   @map("workspace_id") @db.Char(36)
+  name        String   @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folders   Folder[]
+
+  @@index([workspaceId], map: "idx_projects_workspace_id")
+  @@fulltext([name], map: "ft_projects_name")
+  @@map("projects")
+}
+
+model Folder {
+  id        String   @id @db.Char(36)
+  projectId String   @map("project_id") @db.Char(36)
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([projectId], map: "idx_folders_project_id")
+  @@fulltext([name], map: "ft_folders_name")
+  @@map("folders")
+}
+
+model Document {
+  id        String   @id @db.Char(36)
+  folderId  String   @map("folder_id") @db.Char(36)
+  title     String   @db.VarChar(500)
+  createdBy String?  @map("created_by") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+
+  folder        Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  createdByUser User?           @relation("DocumentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  members       DocumentMember[]
+  draft         DocumentDraft?
+  versions      DocumentVersion[]
+  assets        DocumentAsset[]
+  sharedLinks   SharedLink[]
+  notifications Notification[]
+
+  @@index([folderId], map: "idx_documents_folder_id")
+  @@fulltext([title], map: "ft_documents_title")
+  @@map("documents")
+}
+
+model DocumentMember {
+  id             String       @id @db.Char(36)
+  documentId     String       @map("document_id") @db.Char(36)
+  userId         String       @map("user_id") @db.Char(36)
+  role           DocumentRole
+  canViewHistory Boolean      @default(false) @map("can_view_history")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId], map: "uq_document_members")
+  @@map("document_members")
+}
+
+model DocumentDraft {
+  id         String   @id @db.Char(36)
+  documentId String   @unique @map("document_id") @db.Char(36)
+  content    Json     @db.Json
+  updatedBy  String?  @map("updated_by") @db.Char(36)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  updatedByUser User?    @relation("DocumentDraftUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@map("document_drafts")
+}
+
+model DocumentVersion {
+  id              String        @id @db.Char(36)
+  documentId       String        @map("document_id") @db.Char(36)
+  name            String        @db.VarChar(255)
+  comment         String?       @db.Text
+  content         Json          @db.Json
+  createdBy       String?       @map("created_by") @db.Char(36)
+  basedOnVersionId String?      @map("based_on_version_id") @db.Char(36)
+  source          VersionSource @default(manual)
+  mergeFromA      String?       @map("merge_from_a") @db.Char(36)
+  mergeFromB      String?       @map("merge_from_b") @db.Char(36)
+  importWarnings  Json?         @map("import_warnings") @db.Json
+  isCurrent       Boolean       @default(false) @map("is_current")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.DateTime(6)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdByUser User? @relation("DocumentVersionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  basedOnVersion DocumentVersion? @relation("BasedOnVersion", fields: [basedOnVersionId], references: [id], onDelete: SetNull)
+  derivedVersions DocumentVersion[] @relation("BasedOnVersion")
+  mergeA DocumentVersion? @relation("MergeFromA", fields: [mergeFromA], references: [id], onDelete: SetNull)
+  mergedFromA DocumentVersion[] @relation("MergeFromA")
+  mergeB DocumentVersion? @relation("MergeFromB", fields: [mergeFromB], references: [id], onDelete: SetNull)
+  mergedFromB DocumentVersion[] @relation("MergeFromB")
+  sharedLinks SharedLink[]
+
+  @@index([documentId], map: "idx_dv_document_id")
+  @@index([documentId, isCurrent], map: "idx_dv_is_current")
+  @@index([basedOnVersionId], map: "idx_dv_based_on")
+  @@map("document_versions")
+}
+
+model DocumentAsset {
+  id         String   @id @db.Char(36)
+  documentId String   @map("document_id") @db.Char(36)
+  uploadedBy String?  @map("uploaded_by") @db.Char(36)
+  filename   String   @db.VarChar(255)
+  storageKey String   @unique @map("storage_key") @db.VarChar(500)
+  mimeType   String   @map("mime_type") @db.VarChar(100)
+  sizeBytes  Int      @map("size_bytes") @db.UnsignedInt
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(6)
+
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedByUser User?   @relation("DocumentAssetUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([documentId], map: "idx_da_document_id")
+  @@map("document_assets")
+}
+
+model SharedLink {
+  id           String    @id @db.Char(36)
+  documentId   String    @map("document_id") @db.Char(36)
+  versionId    String?   @map("version_id") @db.Char(36)
+  token        String    @unique @db.VarChar(255)
+  mode         ShareMode
+  allowHistory Boolean   @default(false) @map("allow_history")
+  createdBy    String?   @map("created_by") @db.Char(36)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(6)
+  revokedAt    DateTime? @map("revoked_at") @db.DateTime(6)
+
+  document      Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version       DocumentVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  createdByUser User?           @relation("SharedLinkCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  accessLogs    SharedLinkAccessLog[]
+
+  @@index([documentId], map: "idx_shared_links_document_id")
+  @@map("shared_links")
+}
+
+model SharedLinkAccessLog {
+  id           String   @id @db.Char(36)
+  sharedLinkId String   @map("shared_link_id") @db.Char(36)
+  ipAddress    String   @map("ip_address") @db.VarChar(45)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(6)
+
+  sharedLink SharedLink @relation(fields: [sharedLinkId], references: [id], onDelete: Cascade)
+
+  @@index([sharedLinkId], map: "idx_shared_link_access_logs_link_id")
+  @@map("shared_link_access_logs")
+}
+
+model Notification {
+  id            String           @id @db.Char(36)
+  userId        String           @map("user_id") @db.Char(36)
+  type          NotificationType
+  documentId    String?          @map("document_id") @db.Char(36)
+  relatedUserId String?          @map("related_user_id") @db.Char(36)
+  payload       Json             @db.Json
+  createdAt     DateTime         @default(now()) @map("created_at") @db.DateTime(6)
+  readAt        DateTime?        @map("read_at") @db.DateTime(6)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([userId], map: "idx_notifications_user_id")
+  @@index([userId, readAt], map: "idx_notifications_user_unread")
+  @@index([documentId], map: "idx_notifications_document_id")
+  @@map("notifications")
+}
+
+model RefreshToken {
+  id        String    @id @db.Char(36)
+  userId    String    @map("user_id") @db.Char(36)
+  token     String    @db.VarChar(512)
+  expiresAt DateTime  @map("expires_at") @db.DateTime(6)
+  revokedAt DateTime? @map("revoked_at") @db.DateTime(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token], map: "uq_refresh_tokens_token")
+  @@index([userId], map: "idx_refresh_tokens_user_id")
+  @@index([expiresAt], map: "idx_refresh_tokens_expires_at")
+  @@map("refresh_tokens")
+}

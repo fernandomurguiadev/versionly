@@ -1,0 +1,41 @@
+<div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+  <div class="flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-white">Comparar versiones</h2>
+    <span class="text-xs text-slate-400">Diff básico</span>
+  </div>
+  <p *ngIf="diffError" class="mt-2 text-sm text-rose-300">{{ diffError }}</p>
+  <div class="mt-4 grid gap-3 md:grid-cols-3">
+    <div>
+      <label class="text-xs text-slate-400">Versión A</label>
+      <select
+        class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-white"
+        [(ngModel)]="selectedVersionA"
+      >
+        <option *ngFor="let version of versions" [value]="version.id">{{ version.name }}</option>
+      </select>
+    </div>
+    <div>
+      <label class="text-xs text-slate-400">Versión B</label>
+      <select
+        class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-white"
+        [(ngModel)]="selectedVersionB"
+      >
+        <option *ngFor="let version of versions" [value]="version.id">{{ version.name }}</option>
+      </select>
+    </div>
+    <div class="flex items-end">
+      <button class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" type="button" (click)="compareVersions()">
+        Comparar
+      </button>
+    </div>
+  </div>
+  <div *ngIf="diffSummary" class="mt-4 grid gap-3 text-xs text-slate-200 md:grid-cols-4">
+    <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">Agregados: {{ diffSummary.added }}</div>
+    <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">Eliminados: {{ diffSummary.removed }}</div>
+    <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">Modificados: {{ diffSummary.modified }}</div>
+    <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">Iguales: {{ diffSummary.unchanged }}</div>
+  </div>
+  <pre *ngIf="diffChanges" class="mt-4 whitespace-pre-wrap rounded-lg bg-slate-950/70 p-4 text-xs text-slate-200">
+{{ diffChanges | json }}
+  </pre>
+</div>

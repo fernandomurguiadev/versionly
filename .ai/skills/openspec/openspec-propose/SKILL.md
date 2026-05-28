@@ -2,14 +2,19 @@
 name: openspec-propose
 description: Propose a new change with all artifacts generated in one step. Use when the user wants to quickly describe what they want to build and get a complete proposal with design, specs, and tasks ready for implementation.
 license: MIT
-compatibility: Requires openspec CLI.
+compatibility: openspec CLI (preferred) or manual file creation (fallback).
 metadata:
   author: openspec
-  version: "1.0"
+  version: "1.1"
   generatedBy: "1.3.0"
 ---
 
 Propose a new change - create the change and generate all artifacts in one step.
+
+## Modo de operación
+
+**Con CLI** (preferido): usar comandos `openspec new change`, `openspec instructions`, `openspec status`.
+**Sin CLI** (fallback manual): crear los archivos directamente en `openspec/changes/<name>/` siguiendo la estructura obligatoria.
 
 I'll create a change with artifacts:
 - proposal.md (what & why)
@@ -137,3 +142,85 @@ After completing all artifacts, summarize:
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next
+
+---
+
+## Fallback Manual (sin CLI)
+
+Si el CLI de OpenSpec no está disponible, crear los archivos manualmente:
+
+```
+openspec/changes/<kebab-case-name>/
+├── proposal.md
+├── design.md
+├── tasks.md
+└── specs/
+    └── <domain>/       ← api | app | shared
+        └── spec.md
+```
+
+### proposal.md — formato obligatorio
+```markdown
+# Proposal: <name>
+
+## Intent
+[Por qué es necesario este cambio y qué valor aporta]
+
+## Scope
+- [Qué incluye]
+- [Qué NO incluye]
+
+## Approach
+[Estrategia técnica y decisiones arquitectónicas]
+```
+
+### design.md — formato obligatorio
+```markdown
+# Design: <name>
+
+[Decisiones técnicas: tipos, algoritmos, componentes, flujo de datos]
+[Incluir código o pseudocódigo relevante]
+```
+
+### tasks.md — formato obligatorio
+```markdown
+# Tasks: <name>
+
+## 1. [Fase o componente]
+- [ ] 1.1 [Subtarea atómica]
+- [ ] 1.2 [Subtarea atómica]
+
+## 2. [Fase o componente]
+- [ ] 2.1 [Subtarea atómica]
+```
+
+### specs/\<domain\>/spec.md — formato obligatorio
+```markdown
+# Delta: <domain> — <name>
+
+## ADDED Requirements
+
+### Requirement: <Nombre>
+[Descripción con SHALL/MUST/MAY]
+
+#### Scenario: <Nombre del escenario>
+- GIVEN [contexto inicial]
+- WHEN [acción]
+- THEN [resultado esperado]
+
+## MODIFIED Requirements
+
+### Requirement: <Nombre>
+[Nueva descripción]
+(Previously: [descripción anterior])
+
+## REMOVED Requirements
+
+### Requirement: <Nombre>
+(Razón de la eliminación)
+```
+
+### Nomenclatura del change
+- `api-*` → afecta solo `api/`
+- `app-*` → afecta solo `app/`
+- `shared-*` → afecta ambos proyectos

@@ -51,7 +51,18 @@ export class VersionsService {
 
     const versions = await this.prisma.documentVersion.findMany({
       where,
-      include: { createdByUser: { select: { id: true, fullName: true } } },
+      select: {
+        id: true,
+        documentId: true,
+        name: true,
+        comment: true,
+        source: true,
+        isCurrent: true,
+        basedOnVersionId: true,
+        createdAt: true,
+        // content excluido intencionalmente — el listado no necesita el payload completo
+        createdByUser: { select: { id: true, fullName: true } },
+      },
       orderBy: { [sortKey]: order },
       skip: (pageValue - 1) * limitValue,
       take: limitValue,

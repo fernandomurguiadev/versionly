@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { DocumentSettings, DocumentSettingsDto, DEFAULT_SETTINGS } from './dto/document-settings.dto';
 import { PrismaService } from '../../integrations/prisma/prisma.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
@@ -436,6 +437,34 @@ export class DocumentsService {
     if (!member || !roles.includes(member.role)) {
       throw new ForbiddenException('No tienes permisos para esta acción.');
     }
+  }
+
+  // ─── Document settings ───────────────────────────────────────────────────
+
+  async getSettings(userId: string, docId: string): Promise<DocumentSettings> {
+    const access = await this.accessService.getAccess(userId, docId);
+    if (!access) throw new NotFoundException('Documento no encontrado.');
+
+    const doc = await this.prisma.document.findUnique({
+      where: { id: docId },
+      select: { settings: true },
+    });
+
+    return { ...DEFAULT_SETTINGS, ...(doc?.settings as Partial<DocumentSettings> ?? {}) };
+  }
+
+  async updateSettings(userId: string, docId: string, dto: DocumentSettingsDto): Promise<DocumentSettings> {
+    await this.accessService.assertEditor(userId, docId);
+
+    const current = await this.getSettings(userId, docId);
+    const merged: DocumentSettings = { ...current, ...dto };
+
+    await this.prisma.document.update({
+      where: { id: docId },
+      data: { settings: merged as object },
+    });
+
+    return merged;
   }
 
   private async assertFolderAccess(userId: string, folderId: string, roles: WorkspaceRole[]) {

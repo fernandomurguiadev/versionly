@@ -8,7 +8,13 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse();
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-      const status = exception.code === 'P2002' ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
+      const statusMap: Record<string, number> = {
+        P2002: HttpStatus.CONFLICT,           // Unique constraint violation
+        P2025: HttpStatus.NOT_FOUND,          // Record not found
+        P2003: HttpStatus.CONFLICT,           // FK constraint violation
+        P2016: HttpStatus.BAD_REQUEST,        // Query interpretation error
+      };
+      const status = statusMap[exception.code] ?? HttpStatus.BAD_REQUEST;
       response.status(status).send({
         success: false,
         error: {

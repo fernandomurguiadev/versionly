@@ -1,10 +1,9 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["fullTextIndex"]
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -54,13 +53,13 @@ enum NotificationType {
 }
 
 model User {
-  id              String               @id @db.Char(36)
+  id              String               @id @db.Uuid
   email           String               @unique @db.VarChar(255)
   passwordHash    String               @map("password_hash") @db.Text
   fullName        String?              @map("full_name") @db.VarChar(255)
-  emailVerifiedAt DateTime?            @map("email_verified_at") @db.DateTime(6)
-  createdAt       DateTime             @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt       DateTime             @updatedAt @map("updated_at") @db.DateTime(6)
+  emailVerifiedAt DateTime?            @map("email_verified_at") @db.Timestamptz
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime             @updatedAt @map("updated_at") @db.Timestamptz
 
   passwordResetTokens PasswordResetToken[]
   refreshTokens       RefreshToken[]
@@ -79,11 +78,11 @@ model User {
 }
 
 model PasswordResetToken {
-  id        String    @id @db.Char(36)
-  userId    String    @map("user_id") @db.Char(36)
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
   token     String    @unique @db.VarChar(255)
-  expiresAt DateTime  @map("expires_at") @db.DateTime(6)
-  usedAt    DateTime? @map("used_at") @db.DateTime(6)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -93,11 +92,11 @@ model PasswordResetToken {
 }
 
 model Workspace {
-  id        String   @id @db.Char(36)
+  id        String   @id @db.Uuid
   name      String   @db.VarChar(255)
-  createdBy String?  @map("created_by") @db.Char(36)
-  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   createdByUser User?             @relation("WorkspaceCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   members       WorkspaceMember[]
@@ -108,11 +107,11 @@ model Workspace {
 }
 
 model WorkspaceMember {
-  id          String        @id @db.Char(36)
-  workspaceId String        @map("workspace_id") @db.Char(36)
-  userId      String        @map("user_id") @db.Char(36)
+  id          String        @id @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
   role        WorkspaceRole
-  createdAt   DateTime      @default(now()) @map("created_at") @db.DateTime(6)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -122,15 +121,15 @@ model WorkspaceMember {
 }
 
 model WorkspaceInvitation {
-  id          String                 @id @db.Char(36)
-  workspaceId String                 @map("workspace_id") @db.Char(36)
+  id          String                 @id @db.Uuid
+  workspaceId String                 @map("workspace_id") @db.Uuid
   email       String                 @db.VarChar(255)
   role        WorkspaceInvitationRole
   token       String                 @unique @db.VarChar(255)
-  expiresAt   DateTime               @map("expires_at") @db.DateTime(6)
-  acceptedAt  DateTime?              @map("accepted_at") @db.DateTime(6)
-  createdBy   String?                @map("created_by") @db.Char(36)
-  createdAt   DateTime               @default(now()) @map("created_at") @db.DateTime(6)
+  expiresAt   DateTime               @map("expires_at") @db.Timestamptz
+  acceptedAt  DateTime?              @map("accepted_at") @db.Timestamptz
+  createdBy   String?                @map("created_by") @db.Uuid
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz
 
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdByUser User?     @relation("WorkspaceInvitationCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -141,42 +140,41 @@ model WorkspaceInvitation {
 }
 
 model Project {
-  id          String   @id @db.Char(36)
-  workspaceId String   @map("workspace_id") @db.Char(36)
+  id          String   @id @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
   name        String   @db.VarChar(255)
-  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folders   Folder[]
 
   @@index([workspaceId], map: "idx_projects_workspace_id")
-  @@fulltext([name], map: "ft_projects_name")
   @@map("projects")
 }
 
 model Folder {
-  id        String   @id @db.Char(36)
-  projectId String   @map("project_id") @db.Char(36)
+  id        String   @id @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
   name      String   @db.VarChar(255)
-  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   documents Document[]
 
   @@index([projectId], map: "idx_folders_project_id")
-  @@fulltext([name], map: "ft_folders_name")
   @@map("folders")
 }
 
 model Document {
-  id        String   @id @db.Char(36)
-  folderId  String   @map("folder_id") @db.Char(36)
+  id        String   @id @db.Uuid
+  folderId  String   @map("folder_id") @db.Uuid
   title     String   @db.VarChar(500)
-  createdBy String?  @map("created_by") @db.Char(36)
-  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+  settings  Json?    @db.JsonB
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   folder        Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)
   createdByUser User?           @relation("DocumentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -188,17 +186,16 @@ model Document {
   notifications Notification[]
 
   @@index([folderId], map: "idx_documents_folder_id")
-  @@fulltext([title], map: "ft_documents_title")
   @@map("documents")
 }
 
 model DocumentMember {
-  id             String       @id @db.Char(36)
-  documentId     String       @map("document_id") @db.Char(36)
-  userId         String       @map("user_id") @db.Char(36)
+  id             String       @id @db.Uuid
+  documentId     String       @map("document_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
   role           DocumentRole
   canViewHistory Boolean      @default(false) @map("can_view_history")
-  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -208,12 +205,12 @@ model DocumentMember {
 }
 
 model DocumentDraft {
-  id         String   @id @db.Char(36)
-  documentId String   @unique @map("document_id") @db.Char(36)
-  content    Json     @db.Json
-  updatedBy  String?  @map("updated_by") @db.Char(36)
-  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.DateTime(6)
+  id         String   @id @db.Uuid
+  documentId String   @unique @map("document_id") @db.Uuid
+  content    Json     @db.JsonB
+  updatedBy  String?  @map("updated_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   updatedByUser User?    @relation("DocumentDraftUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
@@ -222,19 +219,19 @@ model DocumentDraft {
 }
 
 model DocumentVersion {
-  id              String        @id @db.Char(36)
-  documentId       String        @map("document_id") @db.Char(36)
+  id              String        @id @db.Uuid
+  documentId       String        @map("document_id") @db.Uuid
   name            String        @db.VarChar(255)
   comment         String?       @db.Text
-  content         Json          @db.Json
-  createdBy       String?       @map("created_by") @db.Char(36)
-  basedOnVersionId String?      @map("based_on_version_id") @db.Char(36)
+  content         Json          @db.JsonB
+  createdBy       String?       @map("created_by") @db.Uuid
+  basedOnVersionId String?      @map("based_on_version_id") @db.Uuid
   source          VersionSource @default(manual)
-  mergeFromA      String?       @map("merge_from_a") @db.Char(36)
-  mergeFromB      String?       @map("merge_from_b") @db.Char(36)
-  importWarnings  Json?         @map("import_warnings") @db.Json
+  mergeFromA      String?       @map("merge_from_a") @db.Uuid
+  mergeFromB      String?       @map("merge_from_b") @db.Uuid
+  importWarnings  Json?         @map("import_warnings") @db.JsonB
   isCurrent       Boolean       @default(false) @map("is_current")
-  createdAt       DateTime      @default(now()) @map("created_at") @db.DateTime(6)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   createdByUser User? @relation("DocumentVersionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -253,14 +250,14 @@ model DocumentVersion {
 }
 
 model DocumentAsset {
-  id         String   @id @db.Char(36)
-  documentId String   @map("document_id") @db.Char(36)
-  uploadedBy String?  @map("uploaded_by") @db.Char(36)
+  id         String   @id @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  uploadedBy String?  @map("uploaded_by") @db.Uuid
   filename   String   @db.VarChar(255)
   storageKey String   @unique @map("storage_key") @db.VarChar(500)
   mimeType   String   @map("mime_type") @db.VarChar(100)
-  sizeBytes  Int      @map("size_bytes") @db.UnsignedInt
-  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(6)
+  sizeBytes  Int      @map("size_bytes")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   uploadedByUser User?   @relation("DocumentAssetUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull)
@@ -270,15 +267,15 @@ model DocumentAsset {
 }
 
 model SharedLink {
-  id           String    @id @db.Char(36)
-  documentId   String    @map("document_id") @db.Char(36)
-  versionId    String?   @map("version_id") @db.Char(36)
+  id           String    @id @db.Uuid
+  documentId   String    @map("document_id") @db.Uuid
+  versionId    String?   @map("version_id") @db.Uuid
   token        String    @unique @db.VarChar(255)
   mode         ShareMode
   allowHistory Boolean   @default(false) @map("allow_history")
-  createdBy    String?   @map("created_by") @db.Char(36)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(6)
-  revokedAt    DateTime? @map("revoked_at") @db.DateTime(6)
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz
 
   document      Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
   version       DocumentVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
@@ -290,11 +287,11 @@ model SharedLink {
 }
 
 model SharedLinkAccessLog {
-  id           String   @id @db.Char(36)
-  sharedLinkId String   @map("shared_link_id") @db.Char(36)
+  id           String   @id @db.Uuid
+  sharedLinkId String   @map("shared_link_id") @db.Uuid
   ipAddress    String   @map("ip_address") @db.VarChar(45)
   userAgent    String?  @map("user_agent") @db.VarChar(500)
-  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   sharedLink SharedLink @relation(fields: [sharedLinkId], references: [id], onDelete: Cascade)
 
@@ -303,14 +300,14 @@ model SharedLinkAccessLog {
 }
 
 model Notification {
-  id            String           @id @db.Char(36)
-  userId        String           @map("user_id") @db.Char(36)
+  id            String           @id @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
   type          NotificationType
-  documentId    String?          @map("document_id") @db.Char(36)
-  relatedUserId String?          @map("related_user_id") @db.Char(36)
-  payload       Json             @db.Json
-  createdAt     DateTime         @default(now()) @map("created_at") @db.DateTime(6)
-  readAt        DateTime?        @map("read_at") @db.DateTime(6)
+  documentId    String?          @map("document_id") @db.Uuid
+  relatedUserId String?          @map("related_user_id") @db.Uuid
+  payload       Json             @db.JsonB
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  readAt        DateTime?        @map("read_at") @db.Timestamptz
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   document Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
@@ -322,11 +319,11 @@ model Notification {
 }
 
 model RefreshToken {
-  id        String    @id @db.Char(36)
-  userId    String    @map("user_id") @db.Char(36)
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
   token     String    @db.VarChar(512)
-  expiresAt DateTime  @map("expires_at") @db.DateTime(6)
-  revokedAt DateTime? @map("revoked_at") @db.DateTime(6)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

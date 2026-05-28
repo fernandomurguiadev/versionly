@@ -46,6 +46,16 @@ Ante inconsistencias, prevalece el orden anterior y se registra el hallazgo en e
 
 ---
 
+## 5.1 Google Drive Integration — Decisiones clave *(v1.1)*
+
+- **Sync intencional, no automático**: El usuario elige cuándo importar desde Drive. No hay polling ni webhooks en v1.1. Esto preserva la filosofía de "versionado con intención" del producto.
+- **Scopes mínimos**: Solo `drive.readonly` y `drive.metadata.readonly`. Versionly nunca escribe en Drive.
+- **Tokens cifrados**: Access token y refresh token se almacenan cifrados en la base de datos. Nunca se exponen al frontend.
+- **Conversion pipeline**: Google Docs → exportar como `.docx` → mammoth.js → ProseMirror JSON. Los archivos `.docx` se convierten directamente.
+- **Un mapping por documento**: Un documento Versionly puede mapear a exactamente un archivo Drive. Para cambiar el origen hay que crear un nuevo documento.
+
+---
+
 ## 6. Seguridad y cumplimiento
 - Autenticación con JWT y refresh tokens, bcrypt para hash de contraseñas.
 - Rate limiting en endpoints críticos como autoguardado.

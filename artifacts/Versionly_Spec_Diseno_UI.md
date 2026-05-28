@@ -739,14 +739,14 @@ Misma estructura visual que el login. Diferencias:
 
 ---
 
-# → IMPLEMENTATION NOTES para Versionly (Angular 19 + Tailwind)
+# → IMPLEMENTATION NOTES para Versionly (Next.js 15 App Router + Tailwind)
 
-## Design Token Setup — `tailwind.config.js`
+## Design Token Setup — `tailwind.config.ts`
 
 ```javascript
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./src/**/*.{html,ts}'],
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -833,25 +833,27 @@ module.exports = {
 
 ## Component Priority List (orden de implementación)
 
+> Los componentes usan nomenclatura de archivos Next.js/React (kebab-case). Los primitivos de shadcn/ui (`Button`, `Input`, `Dialog`, etc.) se instalan desde la CLI de shadcn y se extienden con los tokens del design system.
+
 ### Fase 1 — Shared primitivos (sin estos nada funciona)
 
-1. **`app-badge`** — variantes: version (teal), current (verde), admin (teal), editor (azul), diff-added/removed/modified, plan (Más popular)
-2. **`app-button`** — variantes: primary (azul), secondary (ghost con borde), ghost (sin borde), icon-only. Estados: default, hover, loading, disabled
-3. **`app-input`** — texto, email, password (con toggle ojo), textarea. Con ícono izquierdo opcional
-4. **`app-modal`** — container con overlay, título, X, slot de contenido, slot de footer
-5. **`app-avatar`** — circular, tamaños: sm (24px), md (32px), lg (40px), xl (80px)
-6. **`app-checkbox`** — con label. Estado checked azul
+1. **`version-badge`** — variantes: version (teal), current (verde), admin (teal), editor (azul), diff-added/removed/modified, plan (Más popular)
+2. **`Button` (shadcn extendido)** — variantes: primary (azul), secondary (ghost con borde), ghost (sin borde), destructive (rojo), icon-only. Estados: default, hover, loading, disabled
+3. **`Input` / `Textarea` (shadcn extendido)** — texto, email, password (con toggle ojo). Con ícono izquierdo opcional
+4. **`Dialog` (shadcn extendido)** — container con overlay, título, X, slot de contenido, slot de footer
+5. **`avatar`** — circular, tamaños: sm (24px), md (32px), lg (40px), xl (80px)
+6. **`Checkbox` (shadcn extendido)** — con label. Estado checked azul
 
 ### Fase 2 — Layout y navegación
 
-7. **`app-sidebar`** — con logo, nav-item (activo/inactivo), workspace-tree (expandible), user-footer
-8. **`app-topbar`** — variantes: app principal, editor, comparador
-9. **`app-search-bar`** — con ícono lupa, placeholder, debounce
+7. **`sidebar`** — con logo, nav-item (activo/inactivo), workspace-tree (expandible), user-footer. Client Component.
+8. **`topbar`** — variantes: app principal, editor, comparador
+9. **`search-bar`** — con ícono lupa, placeholder, debounce
 
 ### Fase 3 — Pantallas de auth
 
-10. **`login-page`** (AUTH-02)
-11. **`register-page`** (AUTH-01)
+10. **`app/(auth)/login/page.tsx`** (AUTH-02)
+11. **`app/(auth)/register/page.tsx`** (AUTH-01)
 
 ### Fase 4 — Dashboard y documentos
 
@@ -861,7 +863,7 @@ module.exports = {
 
 ### Fase 5 — Editor
 
-15. **`tiptap-editor`** con `formatting-toolbar`
+15. **`tiptap-editor`** con `formatting-toolbar` (Client Component)
 16. **`autosave-indicator`** — tres estados
 17. **`save-version-modal`** (ED-02)
 18. **`version-history-panel`** (ED-04)
@@ -873,6 +875,14 @@ module.exports = {
 21. **`diff-summary-bar`** con badges añadido/eliminado/modificado
 22. **`diff-panel`** — con line numbers, contenido monoespaciado, resaltado semántico
 23. **`diff-legend`** — footer leyenda
+
+### Fase 7 — Google Drive *(v1.1)*
+
+24. **`drive-file-picker`** — modal IMP-GD-03. Client Component con `useQuery` (TanStack Query).
+25. **`drive-file-list`** — listado paginado con búsqueda. Recibe datos de `use-drive-files.ts`.
+26. **`drive-file-list-item`** — ítem individual con ícono de tipo, nombre, fecha y badge mimeType.
+27. **`connected-account`** — card de cuenta Google conectada con badge estado y botón Revocar.
+28. **`app/(app)/(features)/integrations/google-drive/callback/page.tsx`** — Server Component para el callback OAuth.
 
 ---
 
@@ -910,18 +920,20 @@ module.exports = {
 }
 ```
 
-> Implementado en Angular: ver App Shell y Sidebar en `frontend/src/app/pages/app-shell/app-shell.page.html`.
+> Implementado en Next.js: ver App Shell y Sidebar en `app/(app)/layout.tsx` y `components/layout/app-shell.tsx`.
 
-## Angular-Specific Notes
+## Next.js 15 App Router — Implementation Notes
 
-- **Routing:** sidebar activa el ítem correcto via `routerLinkActive`. El ítem "Todos los documentos" es una ruta global, los ítems de carpeta son subrutas.
-- **View toggle (grid/lista):** persistir en `DocumentsStore` como `viewMode: signal<'grid' | 'list'>`. Ambas vistas en el mismo componente con `@if (viewMode() === 'grid')`.
-- **Sidebar tree:** usar `@for` recursivo para renderizar workspaces y carpetas. Estado expandido/colapsado en el store o `signal` local del componente.
-- **Editor topbar:** el badge de versión activa (`vv1.3`) se lee de `EditorStore.currentVersion()`. Actualiza en tiempo real cuando se marca una versión como actual.
-- **Autosave indicator:** `signal<'idle'|'saving'|'saved'|'error'>` en el `EditorStore`. La clase CSS cambia según el valor de la señal.
-- **Panel historial:** slide-in desde la derecha con `[@slideIn]` Angular Animation. El ancho del editor disminuye cuando el panel está abierto (CSS Flexbox, no resize manual).
+- **Routing:** la sidebar activa el ítem correcto usando `usePathname()` de `next/navigation` comparado con el href de cada nav-item.
+- **View toggle (grid/lista):** persistir en un Zustand store o en `useSearchParams` para que sea compartible por URL. Ambas vistas en el mismo componente con condicional `viewMode === 'grid'`.
+- **Sidebar tree:** componente Client (`"use client"`) con estado local de expansión por workspace. Renderizado recursivo de carpetas.
+- **Editor topbar:** el badge de versión activa (`vv1.3`) se lee del store de editor (TanStack Query + estado optimista). Invalida automáticamente al marcar nueva versión actual.
+- **Autosave indicator:** `useState<'idle'|'saving'|'saved'|'error'>` en el componente de editor. La clase Tailwind cambia según el valor.
+- **Panel historial:** slide-in con Tailwind `translate-x` + `transition-transform`. El ancho del editor disminuye con CSS Grid cuando el panel está abierto.
 - **Comparador:** ambos paneles de diff con `overflow-y: auto` **independientes** y misma altura. Scroll sincronizado es un nice-to-have post-MVP.
-- **Font family:** usar `@fontsource/inter` desde npm (evitar Google Fonts en producción para GDPR).
+- **Font family:** usar `next/font/google` con `Inter` (optimización automática de fuentes, sin petición a Google en cliente).
+- **Drive File Picker *(v1.1)*:** componente Client. Los datos se obtienen con `useQuery` de TanStack Query llamando al backend (que a su vez llama a Google Drive API). El modal se monta sobre la página de Importaciones con un portal de shadcn/ui `Dialog`.
+- **OAuth Callback *(v1.1)*:** `app/(app)/(features)/integrations/google-drive/callback/page.tsx` es un Server Component que lee el `code` del `searchParams`, llama al backend para el intercambio de token via `fetch` server-side, y luego redirige con `redirect()` de `next/navigation`. No expone el código de autorización al cliente.
 
 ---
 
@@ -938,6 +950,165 @@ module.exports = {
 | `app-modal` | Opening/closing animation |
 | `login/register` | Error de validación en campos, Estado loading del botón submit |
 | `notification-bell` | Panel abierto con lista, Empty state |
+
+---
+
+---
+
+# ESPECIFICACIONES DE COMPONENTES — Google Drive *(v1.1)*
+
+---
+
+## Drive File Picker Modal — IMP-GD-03
+
+Modal de selección de archivos de Google Drive. Se abre desde el tab "Desde Google Drive" en la pantalla de Importaciones.
+
+```json
+{
+  "id": "IMP-GD-03",
+  "version": "v1.1",
+  "tipo": "modal medium",
+  "dimensiones": {
+    "ancho": "600px",
+    "alto": "auto — máximo 80vh con scroll interno en la lista"
+  },
+  "estructura": [
+    "Header: ícono Google Drive (color oficial) + título 'Importar desde Google Drive' + botón ✕",
+    "Search bar: input con placeholder 'Buscar archivos...' + ícono lupa izquierda",
+    "File list: lista scrolleable de archivos (ver especificación de ítem)",
+    "Paginación: botón 'Cargar más' al final de la lista — visible solo si hay más resultados",
+    "Footer: botón 'Cancelar' (secondary) + botón 'Importar seleccionado' (primary)"
+  ],
+  "header": {
+    "icono_drive": "SVG oficial de Google Drive — 24px",
+    "titulo": "Importar desde Google Drive",
+    "peso_titulo": "semibold ~18px",
+    "boton_cerrar": "ícono ✕ esquina superior derecha — ghost, 32px"
+  },
+  "search_bar": {
+    "placeholder": "Buscar archivos...",
+    "icono": "lupa, izquierda, color text-secondary",
+    "fondo": "bg-elevated",
+    "borde": "border-default",
+    "radius": "md (8px)",
+    "debounce": "300ms antes de disparar la búsqueda"
+  },
+  "file_list_item": {
+    "estructura": [
+      "Ícono tipo de archivo (16x16): .docx → ícono Word azul, Google Doc → ícono Docs multicolor",
+      "Nombre del archivo (semibold, truncado con ellipsis si supera el ancho)",
+      "Fecha de modificación (text-secondary, right-aligned)",
+      "Badge mimeType (xs, outline): 'DOCX' o 'Google Doc'"
+    ],
+    "fondo_default": "transparent",
+    "fondo_hover": "bg-elevated",
+    "fondo_seleccionado": "bg-overlay + borde izquierdo 3px action-primary",
+    "padding": "12px 16px",
+    "radius": "sm (6px)",
+    "cursor": "pointer"
+  },
+  "paginacion": {
+    "tipo": "botón 'Cargar más' centrado al final de la lista",
+    "estilo": "secondary, ancho auto",
+    "visibilidad": "solo si el backend indica que hay más resultados (hasNextPage)"
+  },
+  "footer": {
+    "layout": "dos botones alineados a la derecha",
+    "boton_cancelar": {
+      "texto": "Cancelar",
+      "variante": "secondary",
+      "accion": "cierra el modal sin importar"
+    },
+    "boton_importar": {
+      "texto": "Importar seleccionado",
+      "variante": "primary (azul #2563EB)",
+      "estado_disabled": "cuando no hay ningún archivo seleccionado",
+      "estado_loading": "spinner inline mientras se procesa"
+    }
+  },
+  "estado_loading": {
+    "tipo": "skeleton rows",
+    "cantidad_skeletons": 6,
+    "estructura_skeleton": "línea corta (ícono) + línea larga (nombre) + línea corta (fecha)"
+  },
+  "estado_error": {
+    "tipo": "inline — reemplaza la lista",
+    "contenido": "ícono de alerta + mensaje de error + botón 'Reintentar'",
+    "estilo_mensaje": "text-secondary, centrado"
+  },
+  "estado_empty": {
+    "icono": "ícono Drive atenuado ~40px",
+    "texto": "No hay archivos .docx ni Google Docs en tu Drive",
+    "sub_texto": "Solo se muestran archivos .docx y Google Docs",
+    "cta": null
+  }
+}
+```
+
+**Notas de implementación:**
+
+- El modal usa el token `bg-modal` (#1E2433) como fondo — mismo que ED-02.
+- La selección es de un solo archivo (single-select). Seleccionar un ítem deselecciona el anterior.
+- El listado filtra por mimeType: `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (`.docx`) y `application/vnd.google-apps.document` (Google Doc).
+- La búsqueda filtra sobre los resultados ya paginados localmente, y también puede disparar una nueva llamada al backend si se agota la lista local.
+- El estado de selección vive en `use-drive-files.ts` (TanStack Query + estado local).
+
+---
+
+## Connected Accounts Panel — SET-GD-01 *(v1.1)*
+
+Página bajo Settings del workspace que lista las cuentas de Google conectadas.
+
+```json
+{
+  "id": "SET-GD-01",
+  "version": "v1.1",
+  "tipo": "página — sección de settings",
+  "layout": "lista vertical de account cards + CTA para conectar nueva cuenta"
+}
+```
+
+### Account Card
+
+| Elemento | Especificación |
+|---|---|
+| Avatar Google | Imagen de perfil de Google (32px circular) o inicial del email si no hay foto |
+| Email | Texto semibold, truncado con ellipsis |
+| Badge estado | "Conectado" (verde, bg-success-bg) o "Expirado" (naranja/warning) |
+| Botón "Revocar" | Variante destructive (ghost con borde rojo sutil) — solo Admin |
+| Fondo card | bg-elevated (~#161B27), borde border-default, radius lg (12px), padding 16px |
+
+### Empty State
+
+```json
+{
+  "icono": "ícono Google Drive — 48px, color text-tertiary",
+  "titulo": "Conecta tu Google Drive para importar documentos",
+  "descripcion": "Al conectar tu cuenta de Google, podrás seleccionar archivos .docx y Google Docs directamente desde tu Drive.",
+  "cta": {
+    "texto": "Conectar Google Drive",
+    "variante": "primary",
+    "accion": "inicia flujo IMP-GD-01 (redirect OAuth2)"
+  }
+}
+```
+
+### Diálogo de confirmación al revocar
+
+| Campo | Valor |
+|---|---|
+| Tipo | Modal de confirmación — ancho ~440px |
+| Título | "¿Revocar acceso a Google Drive?" |
+| Cuerpo | "Los documentos ya importados no se verán afectados. Podrás volver a conectar tu cuenta en cualquier momento." |
+| Botón cancelar | "Cancelar" (secondary) |
+| Botón confirmar | "Revocar acceso" (destructive — fondo rojo #EF4444, texto blanco) |
+
+**Notas de implementación:**
+
+- La lista de cuentas conectadas se obtiene con `use-drive-connection.ts` (TanStack Query).
+- Revocar dispara `DELETE /api/integrations/google-drive/connections/:id` y luego invalida la query.
+- Si el token de una cuenta está expirado (backend detecta 401 al llamar a Drive API), el badge cambia a "Expirado" y aparece un botón "Reconectar" en lugar de "Revocar".
+- Solo el rol Admin ve esta página (`SET-GD-01`). Los Editores pueden iniciar el flujo de importación pero no administrar las conexiones del workspace.
 
 ---
 

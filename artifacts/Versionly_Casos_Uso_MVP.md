@@ -164,3 +164,65 @@ El Admin puede ejecutar todos los casos de uso listados.
 2) Selecciona eliminar.
 3) Confirma con warning.
 **Resultado:** Documento eliminado con su historial.
+
+---
+
+> Los casos de uso CU-17, CU-18 y CU-19 corresponden a la versión **v1.1** y no forman parte del MVP.
+
+## CU-17 Conectar cuenta de Google Drive *(v1.1)*
+**Actor:** Editor, Admin  
+**Objetivo:** Vincular la cuenta de Google del usuario para permitir importaciones desde Google Drive.  
+**Precondiciones:** Usuario registrado y autenticado en Versionly.  
+**Flujo básico:**
+1) Accede a la sección de integraciones en su perfil o desde el picker de importación.
+2) Selecciona "Conectar Google Drive".
+3) El sistema redirige al flujo de consentimiento OAuth2 de Google con los scopes `drive.readonly` y `drive.metadata.readonly`.
+4) El usuario acepta los permisos en la pantalla de Google.
+5) Google redirige de vuelta a Versionly con el código de autorización.
+6) El sistema intercambia el código por un access token y refresh token, los almacena cifrados y registra la `DriveConnection`.
+7) El sistema muestra confirmación: *"Cuenta de Google conectada correctamente."*
+
+**Flujos alternativos:**
+- Si el usuario rechaza el consentimiento en Google, se muestra un mensaje informativo y la conexión no se crea.
+- Si ya existe una `DriveConnection` activa para el usuario, el sistema ofrece reconectar (sobrescribe los tokens anteriores).
+
+**Resultado:** `DriveConnection` creada con tokens cifrados. El usuario puede importar archivos desde Drive.
+
+## CU-18 Importar documento desde Google Drive *(v1.1)*
+**Actor:** Editor, Admin  
+**Objetivo:** Crear una nueva versión de un documento de Versionly a partir de un archivo en Google Drive.  
+**Precondiciones:** Usuario autenticado con una `DriveConnection` activa. Documento de Versionly existente en una carpeta.  
+**Flujo básico:**
+1) Dentro de un documento, selecciona "Importar desde Google Drive".
+2) Si el access token expiró, el sistema lo renueva automáticamente con el refresh token.
+3) Se abre el selector de archivos (Google Picker API). El usuario puede navegar su Drive.
+4) El usuario selecciona un archivo `.docx` o un Google Doc.
+5) Versionly descarga el contenido: si es Google Doc, lo exporta a `.docx` via Drive API; en ambos casos convierte con mammoth.js a ProseMirror JSON.
+6) El sistema muestra una previsualización con los warnings de elementos de formato omitidos.
+7) El sistema propone un nombre de versión: *"Importado desde Drive — [nombre del archivo] — [fecha]"*. El Editor puede modificarlo.
+8) El Editor confirma la importación.
+9) Se crea la nueva `VersionDocumento` inmutable y se registra o actualiza el `DriveFileMapping` vinculando el documento de Versionly con el archivo de Drive.
+
+**Flujos alternativos:**
+- Si el archivo fue eliminado de Drive o el acceso fue revocado, se muestra error y se sugiere verificar permisos en Google.
+- Si el refresh token es inválido (cuenta de Google desconectada), el sistema solicita reconectar la cuenta (flujo CU-17).
+- Si hay elementos de formato no soportados, se notifica: *"X elementos no pudieron importarse y fueron omitidos."*
+
+**Resultado:** Nueva versión creada en el historial del documento. `DriveFileMapping` registrado para ese par documento–archivo de Drive.
+
+## CU-19 Revocar acceso a Google Drive *(v1.1)*
+**Actor:** Admin, Editor (sobre su propia conexión)  
+**Objetivo:** Desconectar la cuenta de Google del usuario y eliminar los tokens almacenados.  
+**Precondiciones:** Existe una `DriveConnection` activa para el usuario.  
+**Flujo básico:**
+1) Accede a la sección de integraciones en su perfil.
+2) Selecciona "Desconectar Google Drive".
+3) El sistema muestra un warning: *"Se eliminará el acceso a tu Google Drive. Los documentos ya importados no se verán afectados."*
+4) El usuario confirma la revocación.
+5) El sistema llama al endpoint de revocación de Google OAuth2 para invalidar los tokens en el lado de Google.
+6) El sistema elimina (o marca como revocados) el access token y refresh token en la `DriveConnection`.
+
+**Flujos alternativos:**
+- Si la llamada de revocación a Google falla (error de red), el sistema igual elimina los tokens locales e informa al usuario que puede revocar el acceso manualmente desde su cuenta de Google en myaccount.google.com.
+
+**Resultado:** `DriveConnection` marcada como revocada. Los tokens son eliminados. Los `DriveFileMapping` existentes se conservan como registro histórico pero no pueden usarse para nuevas importaciones hasta reconectar.

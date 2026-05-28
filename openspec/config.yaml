@@ -1,0 +1,61 @@
+schema: spec-driven
+
+# Contexto global del proyecto Versionly
+context: |
+  Monorepo: Versionly
+  Root: /
+  Descripción: Plataforma de versionado de documentos con intención — versionado inmutable, diff visual, links de compartición.
+
+  ── Proyecto: api (Backend - NestJS + PostgreSQL) ──
+  Path: api/src/
+  Stack: NestJS 10+, TypeScript, PostgreSQL, TypeORM
+  Conventions:
+    - Arquitectura hexagonal: lógica en Services, nunca en Controllers.
+    - RBAC por workspace (WorkspaceRole: Admin/Editor/Viewer) y documento (DocumentRole: Editor/Viewer).
+    - DTOs con class-validator y @ApiProperty para documentación Swagger.
+    - Migraciones TypeORM estrictas (synchronize: false siempre).
+    - JWT RS256 obligatorio. Tokens solo en cookies httpOnly vía BFF.
+    - Errores de negocio: BusinessException con catálogos tipados por dominio.
+
+  ── Proyecto: app (Frontend - Next.js 15) ──
+  Path: app/src/
+  Stack: Next.js 15 (App Router), TypeScript strict, TanStack Query v5, Tailwind CSS v4, shadcn/ui, React Hook Form, Zod
+  Conventions:
+    - React Server Components (RSC) por defecto, Client Components solo para interactividad.
+    - BFF (Backend-for-Frontend) pattern obligatorio: no guardar tokens en localStorage/sessionStorage.
+    - React Hook Form + Zod para validaciones estructuradas.
+    - Estado cliente: Zustand solo para UI mínima. Server state con TanStack Query.
+    - dangerouslySetInnerHTML prohibido.
+
+  ── Versiones del producto ─────────────────────────────
+  v1.0 MVP: Core de versionado (crear documento, subir versión, diff visual, compartir link).
+  v1.1:     Integración Google Drive OAuth2 (importación intencional, drive.readonly scope).
+
+  ── Convenciones de Naming para Cambios ──────────────────
+  Prefix "api-"    → el cambio afecta ÚNICAMENTE al Backend.
+  Prefix "app-"    → el cambio afecta ÚNICAMENTE al Frontend.
+  Prefix "shared-" → cambio transversal (afecta a ambos proyectos).
+
+  ── Archivo por Scope ─────────────────────────────────
+  Cambios de api → openspec/changes/archive/api/
+  Cambios de app → openspec/changes/archive/app/
+  Transversales  → openspec/changes/archive/shared/
+
+# Reglas específicas por tipo de artefacto
+rules:
+  proposal:
+    - Indicar claramente si el cambio es v1.0 MVP o v1.1+.
+    - Definir si el cambio afecta api/, app/, o ambos (shared).
+    - Especificar roles mínimos requeridos (WorkspaceRole / DocumentRole).
+  specs:
+    - Los specs de módulos funcionales deben incluir una tabla de funcionalidades con prioridad.
+    - Incluir interfaces TypeScript para los modelos de datos de dominio.
+    - Definir criterios de aceptación (CA) verificables para cada módulo.
+  design:
+    - Para UI, especificar el estado vacío, estado de carga (Skeleton) y estado de error.
+    - Para API, definir el endpoint, método HTTP, DTOs de entrada y respuesta, guards requeridos.
+  tasks:
+    - Dividir las tareas en fases de implementación lógicas.
+    - Cada tarea debe ser atómica y permitir verificación independiente.
+    - Las tareas de v1.1 deben estar claramente separadas de las tareas de v1.0 MVP.
+

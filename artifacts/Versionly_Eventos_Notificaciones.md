@@ -14,6 +14,17 @@
 
 ---
 
+### 1.1 Eventos — Integración Google Drive *(v1.1)*
+
+| Evento | Disparado por | Destinatario | Descripción |
+|---|---|---|---|
+| drive.connection.established | Sistema | Admin workspace | Conexión OAuth2 con Google Drive establecida exitosamente |
+| drive.import.completed | Sistema | Usuario que importó | Documento importado desde Drive — nueva versión creada |
+| drive.import.failed | Sistema | Usuario que importó | Error al importar archivo desde Google Drive — detalle del error |
+| drive.token.expired | Sistema | Admin workspace | Token OAuth de Google Drive expiró — reconectar para seguir importando |
+
+---
+
 ## 2. Canal SSE
 **Endpoint sugerido:** `GET /notifications/stream`
 
@@ -52,6 +63,29 @@ data: <payload_json>
   "documentId": "uuid",
   "leftVersionId": "uuid",
   "rightVersionId": "uuid"
+}
+```
+
+---
+
+### 3.1 Payloads — Integración Google Drive *(v1.1)*
+
+**drive.import.completed**
+```json
+{
+  "documentId": "uuid",
+  "versionId": "uuid",
+  "driveFileName": "especificacion-v2.docx",
+  "warningCount": 2
+}
+```
+
+**drive.token.expired**
+```json
+{
+  "workspaceId": "uuid",
+  "connectedEmail": "usuario@gmail.com",
+  "expiredAt": "2026-05-28T10:00:00Z"
 }
 ```
 

@@ -47,6 +47,18 @@
 ### 1.11 Notificacion
 - Evento in-app asociado a publicación, conflicto o invitación.
 
+### 1.12 DriveConnection *(v1.1)*
+- Representa la vinculación OAuth2 entre un Usuario de Versionly y su cuenta de Google.
+- Almacena los tokens de acceso de forma cifrada.
+- Atributos: `id`, `userId`, `workspaceId`, `accessToken` *(cifrado)*, `refreshToken` *(cifrado)*, `tokenExpiresAt`, `scopes`, `createdAt`, `revokedAt`.
+- Un usuario puede tener como máximo una `DriveConnection` activa por workspace.
+
+### 1.13 DriveFileMapping *(v1.1)*
+- Vincula un Documento de Versionly con un archivo específico en Google Drive.
+- Permite rastrear el origen de versiones importadas desde Drive.
+- Atributos: `id`, `documentId`, `driveFileId`, `driveFileName`, `driveWebLink`, `lastSyncedAt`, `lastRemoteModifiedAt`, `syncEnabled`.
+- Un Documento puede tener como máximo un `DriveFileMapping` (1:0..1).
+
 ---
 
 ## 2. Relaciones y cardinalidades
@@ -58,6 +70,8 @@
 - Un Documento tiene un BorradorActivo y muchas VersionDocumento.
 - Una VersionDocumento pertenece a un Documento y tiene un autor Usuario.
 - Un Documento puede tener muchos LinkCompartido.
+- *(v1.1)* Un Usuario puede tener muchas DriveConnection (1:N), aunque solo una activa por workspace en un momento dado.
+- *(v1.1)* Un Documento puede tener a lo sumo un DriveFileMapping (1:0..1).
 
 ---
 
@@ -71,3 +85,6 @@
 - Los permisos se evalúan por rol en Workspace o por acceso directo al Documento.
 - El rol de documento prevalece cuando amplía el acceso.
 - Un workspace debe tener al menos un Admin.
+- *(v1.1)* Una DriveConnection tiene scopes mínimos `drive.readonly` y `drive.metadata.readonly`. No se solicitan scopes de escritura.
+- *(v1.1)* Los tokens OAuth (`accessToken`, `refreshToken`) se almacenan siempre cifrados en base de datos. Nunca se persisten en texto plano ni se exponen en logs.
+- *(v1.1)* La importación desde Drive es intencional: no existe sincronización automática ni polling silencioso en v1.1.

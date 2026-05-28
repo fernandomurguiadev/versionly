@@ -137,8 +137,18 @@ Sección completamente nueva. El mapa original no tenía ninguna pantalla de adm
 | SET-03 | Invitar miembro | Modal | Email + selección de rol (Editor/Viewer). Botón "Enviar invitación". |
 | SET-04 | Transferir rol Admin | Modal | Selección de miembro + confirmación. Solo aparece cuando el Admin intenta salir del workspace. |
 | SET-05 | Perfil de usuario | Página | Nombre, email (no editable), cambio de contraseña. Zona: cerrar sesión en todos los dispositivos. |
+| SET-GD-01 | Cuentas Google Conectadas *(v1.1)* | Página | Lista de conexiones OAuth activas por workspace (una por cuenta Google), con email de la cuenta, estado de la conexión y opción de revocar acceso. Solo Admin. |
+| SET-GD-02 | Drive Sync por Documento *(v1.1)* | Panel | Toggle de importación habilitado/deshabilitado por documento + indicador de última importación desde Drive. Accesible desde el menú del documento. |
+
+**Estado vacío — Cuentas Google Conectadas *(v1.1)*:**
+
+| ID | Contexto | Mensaje / CTA |
+|---|---|---|
+| SET-GD-01-empty | No hay cuentas Google conectadas | "No hay cuentas de Google conectadas — Conectar Drive" |
 
 > **Nota SET-03/04:** son flujos definidos en el sistema de roles que no existían en el mapa original. Sin SET-04, la regla de negocio "workspace siempre tiene al menos un Admin" no tiene representación en la UI.
+
+> **Nota SET-GD-01 *(v1.1)*:** la revocación de acceso desconecta el token OAuth pero no elimina documentos ya importados. El diálogo de confirmación debe dejar esto claro explícitamente.
 
 ---
 
@@ -245,6 +255,29 @@ El editor es la pantalla más compleja de la aplicación. Tiene zonas funcionale
 
 ---
 
+### 10b. Importaciones — Google Drive *(v1.1)*
+
+El usuario inicia el flujo desde la sección de Importaciones (tab "Desde Google Drive"). El flujo es OAuth2 server-side redirect: el frontend nunca maneja tokens directamente.
+
+| ID | Nombre | Tipo | Descripción |
+|---|---|---|---|
+| IMP-GD-01 | Autorización Google Drive | Redirect | Redirige al consent screen de Google OAuth2. Iniciado desde el botón "Conectar con Google Drive" dentro del tab de importación o desde la sección de cuentas conectadas. |
+| IMP-GD-02 | Callback OAuth | Page | Página transitoria (`/integrations/google-drive/callback`) que procesa el código de autorización enviado por Google y redirige al workspace una vez completado el intercambio de token. |
+| IMP-GD-03 | Drive File Picker | Modal | Lista archivos `.docx` y Google Docs del Drive del usuario con búsqueda en tiempo real y paginación ("Cargar más"). El usuario selecciona un archivo para continuar. |
+| IMP-GD-04 | Confirmación de Import | Modal | Preview del archivo seleccionado (nombre + tipo + fecha modificación) + campo para nombre de versión antes de confirmar la importación. |
+| IMP-GD-05 | Resultado de Import | Modal | Resultado con warnings de conversión (si los hay) y link al documento creado. Mismo patrón visual que IMP-03/04. |
+
+**Estados vacíos y de error — Google Drive *(v1.1)*:**
+
+| ID | Contexto | Mensaje |
+|---|---|---|
+| IMP-GD-03-empty | Drive File Picker sin archivos elegibles | "No hay archivos .docx ni Google Docs en tu Drive" |
+| IMP-GD-01-error | Fallo en la redirección OAuth o permiso denegado | "Error al conectar con Google Drive — Reintentar" |
+
+> **Nota de implementación:** IMP-GD-01 no es una pantalla propia de la app; es una redirección al servidor de Google. IMP-GD-02 es la única pantalla transitoria real del frontend — debe mostrar un spinner mientras el backend confirma el token y luego redirigir automáticamente.
+
+---
+
 ### 11. Estados de error globales
 
 Pantallas independientes accesibles directamente por URL, no en el flujo normal de la app.
@@ -287,12 +320,14 @@ VERSIONLY — Mapa de pantallas v1.1
    WS-05    Empty state: workspace sin proyectos     [NEW]
    WS-06    Empty state: proyecto sin carpetas       [NEW]
 
-4. SETTINGS Y MIEMBROS (5 pantallas) — SECCIÓN NUEVA
+4. SETTINGS Y MIEMBROS (7 pantallas) — SECCIÓN NUEVA
    SET-01   Settings generales del workspace        [NEW]
    SET-02   Gestión de miembros                     [NEW]
    SET-03   Modal: Invitar miembro                  [NEW]
    SET-04   Modal: Transferir rol Admin             [NEW]
    SET-05   Perfil de usuario / cuenta              [NEW]
+   SET-GD-01  Cuentas Google Conectadas             [NEW · v1.1]
+   SET-GD-02  Drive Sync por Documento              [NEW · v1.1]
 
 5. DOCUMENTOS (6 vistas)
    DOC-01   Lista de documentos por carpeta
@@ -341,6 +376,15 @@ VERSIONLY — Mapa de pantallas v1.1
     IMP-04  Sección: warnings de formato            [NEW]
     IMP-05  Modal: error de importación             [NEW]
 
+10b. IMPORTACIONES — GOOGLE DRIVE (5 vistas + 2 estados) — SECCIÓN NUEVA · v1.1
+    IMP-GD-01  Autorización Google Drive (redirect) [NEW · v1.1]
+    IMP-GD-02  Callback OAuth (página transitoria)  [NEW · v1.1]
+    IMP-GD-03  Drive File Picker (modal)            [NEW · v1.1]
+    IMP-GD-04  Confirmación de Import (modal)       [NEW · v1.1]
+    IMP-GD-05  Resultado de Import (modal)          [NEW · v1.1]
+    IMP-GD-03-empty  Empty state: sin archivos elegibles  [NEW · v1.1]
+    IMP-GD-01-error  Error: fallo OAuth             [NEW · v1.1]
+
 11. ERRORES GLOBALES (4 páginas) — SECCIÓN NUEVA
     ERR-01  404 — No encontrado                     [NEW]
     ERR-02  403 — Sin permisos                      [NEW]
@@ -348,7 +392,8 @@ VERSIONLY — Mapa de pantallas v1.1
     ERR-04  Workspace eliminado                     [NEW]
 
 ════════════════════════════════════════════════════════════
-TOTAL: 52 vistas  |  [NEW]: 29  |  [MOVED/MERGED]: 3
+TOTAL MVP: 52 vistas  |  [NEW]: 29  |  [MOVED/MERGED]: 3
+TOTAL v1.1: +9 vistas Google Drive (5 pantallas + 2 estados + 2 settings)
 ════════════════════════════════════════════════════════════
 ```
 
@@ -361,6 +406,7 @@ Qué ve cada rol cuando accede a la aplicación:
 ### Admin
 Acceso completo. Adicionalmente ve:
 - SET-01, SET-02, SET-03, SET-04 (settings y miembros)
+- SET-GD-01 (cuentas Google conectadas al workspace — solo Admin) *(v1.1)*
 - ED-08 (eliminar Versión Actual — solo Admin)
 - Botón eliminar documento en DOC-04
 
@@ -390,6 +436,7 @@ Orden sugerido de implementación por valor y dependencias:
 | **Fase 2 — Flujo completo** | ED-06, SHR-01/03, NOT-01 a 04, IMP-01/03 | Cierra el loop principal |
 | **Fase 3 — Robustez** | CMP-01/02, MRG-01/02, ED-03, ED-07/08, SET-01 a 04 | Cubre reglas de negocio y admin |
 | **Fase 4 — Pulido** | Todos los empty states, ERR-01 a 04, SHR-02/04/05, vistas extras | UX completa |
+| **Fase 5 — Google Drive *(v1.1)*** | IMP-GD-01 a 05, SET-GD-01/02, SET-GD-01-empty, IMP-GD-03-empty, IMP-GD-01-error | Integración post-MVP |
 
 ---
 

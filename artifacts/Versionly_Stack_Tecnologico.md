@@ -184,7 +184,23 @@ TipTap gana porque: output JSON estructurado nativo, extensiones oficiales para 
 
 ---
 
-### 3.4 Importación de Documentos
+### 3.4 Google Drive Integration (v1.1)
+
+| # | Tecnología | Versión | Rol en el proyecto | Prioridad |
+|---|---|---|---|---|
+| ☁️ | **googleapis** | v120+ | Cliente oficial de Google APIs para Node.js. Maneja el acceso a Drive API v3: listar archivos, descargar contenido, obtener metadata. | v1.1 |
+| 🔑 | **google-auth-library** | v9+ | Gestión del ciclo de vida de tokens OAuth2: intercambio de código por tokens, refresh automático, revocación. Usado directamente por `googleapis`. | v1.1 |
+| 🛂 | **passport-google-oauth20** | v2.0 | Estrategia Passport para el flujo OAuth2 con Google. Maneja redirect, callback y extracción del perfil del usuario. | v1.1 |
+
+**Decisiones de diseño:**
+
+- **Cifrado de tokens:** Los `access_token` y `refresh_token` se cifran con AES-256 antes de persistirse en la tabla `drive_connections`. La clave de cifrado se gestiona como variable de entorno (`DRIVE_TOKEN_ENCRYPTION_KEY`). Los tokens nunca se almacenan en texto plano.
+- **Sin SDK de Google en el frontend:** El flujo OAuth2 es completamente server-side (redirect). El frontend Angular nunca manipula tokens de Google directamente. El Drive File Picker se implementa mediante la API del backend (`GET /api/v1/integrations/google/files`), sin necesidad de cargar el Google Picker SDK en el cliente.
+- **Importación intencional, sin auto-sync:** En v1.1, el usuario inicia explícitamente cada importación desde Drive. No hay sincronización automática ni polling en background. El polling/webhook queda reservado para v2.0.
+
+---
+
+### 3.5 Importación de Documentos
 
 | # | Tecnología | Versión | Rol en el proyecto | Prioridad |
 |---|---|---|---|---|
@@ -203,7 +219,7 @@ TipTap gana porque: output JSON estructurado nativo, extensiones oficiales para 
 
 ---
 
-### 3.5 Storage de Archivos
+### 3.6 Storage de Archivos
 
 | # | Tecnología | Versión | Rol en el proyecto | Prioridad |
 |---|---|---|---|---|
@@ -213,7 +229,7 @@ TipTap gana porque: output JSON estructurado nativo, extensiones oficiales para 
 
 ---
 
-### 3.6 Notificaciones y Tiempo Real
+### 3.7 Notificaciones y Tiempo Real
 
 | # | Tecnología | Versión | Rol en el proyecto | Prioridad |
 |---|---|---|---|---|
@@ -223,7 +239,7 @@ TipTap gana porque: output JSON estructurado nativo, extensiones oficiales para 
 
 ---
 
-### 3.7 API y Documentación
+### 3.8 API y Documentación
 
 | # | Tecnología | Versión | Rol en el proyecto | Prioridad |
 |---|---|---|---|---|
@@ -233,7 +249,7 @@ TipTap gana porque: output JSON estructurado nativo, extensiones oficiales para 
 
 ---
 
-### 3.8 Testing Backend
+### 3.9 Testing Backend
 
 | # | Tecnología | Versión | Rol en el proyecto | Prioridad |
 |---|---|---|---|---|
@@ -266,7 +282,24 @@ TipTap gana porque: output JSON estructurado nativo, extensiones oficiales para 
 
 ---
 
-### 4.3 CI/CD
+### 4.3 Google Cloud Console (v1.1)
+
+Para habilitar la integración con Google Drive se requiere:
+
+| Requisito | Detalle |
+|---|---|
+| **Proyecto GCP** | Crear un proyecto en [console.cloud.google.com](https://console.cloud.google.com). Nombre sugerido: `versionly-prod` / `versionly-staging`. |
+| **OAuth2 Credentials** | Crear credenciales de tipo "OAuth 2.0 Client ID" (tipo: Web application). Configurar `redirect_uris` con la URL del callback del backend. |
+| **APIs habilitadas** | Google Drive API v3. Google People API (para `userinfo.profile` y `userinfo.email`). |
+| **Quota Drive API** | 10,000 requests/día por proyecto (tier gratuito). Suficiente para MVP. Monitorear en GCP Console → APIs & Services → Quotas. |
+| **Variables de entorno** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`, `DRIVE_TOKEN_ENCRYPTION_KEY` (32 bytes hex para AES-256). |
+| **OAuth consent screen** | Configurar nombre de app, logo, dominio autorizado y scopes. Para producción, requiere verificación de Google si se supera el límite de 100 usuarios de prueba. |
+
+> **Decisión de diseño — Sin sincronización en tiempo real en v1.1:** No se implementan webhooks de Drive (`drive.changes.watch`) ni polling en background. Toda importación desde Drive es iniciada manualmente por el usuario. El soporte de sync automático (polling o push notifications) queda reservado para v2.0.
+
+---
+
+### 4.4 CI/CD
 
 | # | Tecnología | Costo | Rol en el proyecto | Prioridad |
 |---|---|---|---|---|
@@ -282,7 +315,7 @@ TipTap gana porque: output JSON estructurado nativo, extensiones oficiales para 
 
 ---
 
-### 4.4 Monitoreo y Observabilidad
+### 4.5 Monitoreo y Observabilidad
 
 | # | Tecnología | Costo | Rol en el proyecto | Prioridad |
 |---|---|---|---|---|
@@ -312,6 +345,9 @@ Vista consolidada de todas las tecnologías por capa y prioridad para el MVP:
 | Backend | Redis | 7+ | 🟢 Alta |
 | Backend | Passport.js + JWT | NestJS | ⚫ Core |
 | Backend | mammoth.js | 1.x | 🟢 Alta |
+| Backend | googleapis | 120+ | 🔵 v1.1 |
+| Backend | google-auth-library | 9+ | 🔵 v1.1 |
+| Backend | passport-google-oauth20 | 2.0 | 🔵 v1.1 |
 | Backend | Jest + Supertest | NestJS nativo | ⚫ Core |
 | Storage | Cloudflare R2 | S3-compat. | 🟢 Alta |
 | DevOps | Docker + Compose | latest | ⚫ Core |

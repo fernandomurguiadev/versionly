@@ -180,6 +180,17 @@ El Viewer es un usuario con acceso de solo lectura. Puede ser miembro del worksp
 
 ---
 
+### 3.7 Integración Google Drive *(v1.1)*
+
+| Acción | Admin | Editor | Viewer |
+|---|:---:|:---:|:---:|
+| Conectar Google Drive al workspace | ✅ | ❌ | ❌ |
+| Revocar conexión Google Drive | ✅ | ❌ | ❌ |
+| Importar documento desde Drive picker | ✅ | ✅ | ❌ |
+| Ver estado de sincronización Drive | ✅ | ✅ | ❌ |
+
+---
+
 ## 4. Asignación de roles
 
 ### 4.1 A nivel workspace
@@ -231,6 +242,14 @@ Admin  → "Asignar Editor" → selecciona usuario del workspace
 7. **El rol más amplio prevalece cuando hay conflicto entre niveles.** Si un usuario es Viewer en el workspace pero Editor de un documento específico, puede editar ese documento. El sistema siempre evalúa el permiso más permisivo disponible para la acción solicitada.
 
 8. **Un Editor solo puede eliminar sus propias versiones borrador.** No puede eliminar versiones borrador guardadas por otro Editor sobre el mismo documento.
+
+9. **Solo el Admin del workspace puede iniciar y revocar la conexión OAuth2 con Google Drive.** *(v1.1)*
+
+10. **Un Editor puede usar el Drive picker para importar archivos, pero requiere que el Admin haya conectado previamente el workspace.** *(v1.1)*
+
+11. **Las versiones creadas desde Drive import se registran con `source='google_drive'` y autor sistema.** *(v1.1)*
+
+12. **Revocar la conexión OAuth no elimina versiones ya importadas.** El historial de versiones provenientes de Drive permanece intacto. *(v1.1)*
 
 ---
 

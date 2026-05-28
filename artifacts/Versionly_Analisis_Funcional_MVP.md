@@ -101,6 +101,7 @@ Un espacio centralizado donde el editor de un documento trabaja en borradores pr
 - Importación del historial de versiones desde origen externo
 - Límites de plan freemium (definidos post-MVP)
 - Integraciones con herramientas de terceros (Slack, Jira, etc.)
+- **Sincronización con Google Drive via OAuth2** — planificado para v1.1 (ver sección 5.5 y sección 11)
 
 ---
 
@@ -199,6 +200,31 @@ El sistema opera en dos niveles: **workspace** y **documento**. El rol a nivel d
 3. El sistema convierte el contenido al formato interno de Versionly, preservando: títulos y subtítulos, negritas/cursivas/subrayado, listas ordenadas y no ordenadas, bloques de código, enlaces.
 4. Se crea automáticamente la primera versión: **"v1.0 — Importado desde [nombre de archivo]"**. El historial de versiones del origen no se importa.
 5. Si hay elementos de formato no soportados, el sistema notifica: *"X elementos no pudieron importarse y fueron omitidos."*
+
+### 5.5 Flujo de Importación desde Google Drive *(v1.1)*
+
+> Este flujo no está incluido en el MVP. Se documenta aquí como referencia para planificación de v1.1.
+
+**Premisa de diseño:** la sincronización con Google Drive es **intencional**, no automática. Versionly no monitorea cambios en Drive de forma silenciosa. El usuario decide explícitamente cuándo importar una versión desde Drive.
+
+**Prerrequísito:** el usuario debe haber conectado su cuenta de Google (ver CU-17 en el documento de casos de uso v1.1).
+
+**Flujo principal:**
+
+1. El Editor abre un documento en Versionly y selecciona **"Importar desde Google Drive"**.
+2. Se abre el selector de archivos de Google Drive (Google Picker API). El usuario puede navegar su Drive y seleccionar un archivo `.docx` o un Google Doc.
+3. Versionly obtiene el contenido del archivo:
+   - Para Google Docs: exporta a `.docx` via Drive API y lo convierte con mammoth.js → ProseMirror JSON.
+   - Para `.docx` nativos: descarga y convierte con mammoth.js → ProseMirror JSON.
+4. El sistema muestra una previsualización del contenido importado con los warnings de formato (elementos no soportados omitidos).
+5. El Editor confirma la importación. Se crea una nueva versión nombrada: **"Importado desde Drive — [nombre del archivo] — [fecha]"**. El Editor puede renombrarla antes de confirmar.
+6. La nueva versión queda en el historial como cualquier otra versión. El Editor puede marcarla como Versión Actual si lo desea.
+7. Se registra la relación entre el documento de Versionly y el archivo de Drive (entidad `DriveFileMapping`) para facilitar futuras importaciones del mismo archivo.
+
+**Casos borde:**
+- Si el archivo en Drive fue eliminado o el acceso fue revocado, el sistema muestra un error descriptivo y sugiere reconectar la cuenta.
+- Si el token OAuth expiró, el sistema solicita reautenticación antes de continuar.
+- El historial de versiones del archivo en Drive **no** se importa. Solo se importa el estado actual del archivo en el momento de la importación.
 
 ---
 
@@ -329,6 +355,16 @@ Al crear su primera cuenta, el usuario pasa por un onboarding de 3 pasos:
 > El autoguardado puede generar carga si muchos usuarios editan documentos extensos simultáneamente.
 > **Mitigación:** autoguardar solo si hubo cambios desde el último guardado. Considerar guardar en `localStorage` como respaldo inmediato.
 
+> 🟠 **Riesgo Medio — Expiración de tokens OAuth de Google Drive** *(v1.1)*
+>
+> Los access tokens de Google OAuth2 expiran a la hora. Si el usuario no usa la integración frecuentemente, el refresh token puede revocarse por inactividad o por cambio de contraseña en su cuenta de Google.
+> **Mitigación:** implementar renovación automática con el refresh token antes de cada operación de Drive. Detectar errores 401/403 de la API y solicitar reautenticación con mensaje claro. Almacenar refresh tokens cifrados en base de datos.
+
+> 🟠 **Riesgo Medio — Cuotas de la Drive API de Google** *(v1.1)*
+>
+> La Drive API tiene límites de solicitudes por usuario y por proyecto (queries per 100 seconds). En planes gratuitos de Google Cloud, el límite es restrictivo para un servicio con muchos usuarios.
+> **Mitigación:** implementar reintentos con backoff exponencial. En v1.1 el modelo es pull (el usuario activa la importación), lo que reduce drásticamente el volumen de llamadas vs. un modelo de polling automático. Monitorear el uso desde Google Cloud Console desde el primer deploy.
+
 ---
 
 ## 11. Roadmap Post-MVP (Referencia)
@@ -336,10 +372,12 @@ Al crear su primera cuenta, el usuario pasa por un onboarding de 3 pasos:
 | Feature | Versión sugerida | Valor para el usuario |
 |---|---|---|
 | Notificaciones por email | v1.1 | Mejora drástica de la tasa de apertura y uso activo |
-| OAuth (Google, GitHub) | v1.1 | Reduce fricción de registro para equipos de software |
+| OAuth (Google, GitHub) para login | v1.1 | Reduce fricción de registro para equipos de software |
 | Exportación a PDF / .docx | v1.1 | Permite compartir fuera de la plataforma |
+| **Google Drive OAuth2 — Importación intencional desde Drive** | **v1.1** | **El usuario conecta su cuenta de Google (scopes `drive.readonly` + `drive.metadata.readonly`) y puede importar archivos `.docx` o Google Docs desde un selector de Drive. Cada importación crea una nueva versión en Versionly. Sin auto-sync — el usuario decide cuándo importar. Requiere nuevas entidades `DriveConnection` y `DriveFileMapping`. Conversión con mammoth.js (ya en stack).** |
 | Comentarios inline en versiones | v1.2 | Feedback estructurado sin herramientas externas |
 | Límites freemium (workspaces, docs) | v1.2 | Habilita monetización |
+| Google Drive Watch API — detección de cambios automática | v2.0 | Notifica al usuario cuando el archivo en Drive cambió, para que decida si importar |
 | Colaboración en tiempo real | v2.0 | Amplía el caso de uso a edición colaborativa |
 | Integración con Slack (notificaciones) | v2.0 | Lleva las notificaciones donde ya trabaja el equipo |
 | Historial de auditoría (quién accedió cuándo) | v2.0 | Valor alto para contextos regulatorios o de cliente |

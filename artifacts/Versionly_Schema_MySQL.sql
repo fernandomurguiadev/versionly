@@ -209,34 +209,40 @@ CREATE TABLE document_drafts (
 -- [FIX v1.2] source: origin de la versión (manual / import / merge).
 -- [FIX v1.2] merge_from_a / merge_from_b: trazabilidad de merges.
 -- [FIX v1.2] import_warnings: elementos omitidos al importar (JSON array).
+-- [NEW v1.1] drive_file_mapping_id: presente cuando la versión se originó desde Google Drive.
+--            NULL para versiones manuales o importadas desde .docx local.
 CREATE TABLE document_versions (
-  id                  CHAR(36)                         NOT NULL,
-  document_id         CHAR(36)                         NOT NULL,
-  name                VARCHAR(255)                     NOT NULL,
-  comment             TEXT,
-  content             JSON                             NOT NULL,
-  created_by          CHAR(36),
-  based_on_version_id CHAR(36),
-  source              ENUM('manual','import','merge')  NOT NULL DEFAULT 'manual',
-  merge_from_a        CHAR(36),
-  merge_from_b        CHAR(36),
-  import_warnings     JSON,
-  is_current          TINYINT(1)                       NOT NULL DEFAULT 0,
-  created_at          DATETIME(6)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  id                   CHAR(36)                                      NOT NULL,
+  document_id          CHAR(36)                                      NOT NULL,
+  name                 VARCHAR(255)                                  NOT NULL,
+  comment              TEXT,
+  content              JSON                                          NOT NULL,
+  created_by           CHAR(36),
+  based_on_version_id  CHAR(36),
+  source               ENUM('manual','import','merge','drive_import') NOT NULL DEFAULT 'manual',
+  merge_from_a         CHAR(36),
+  merge_from_b         CHAR(36),
+  import_warnings      JSON,
+  drive_file_mapping_id CHAR(36),
+  is_current           TINYINT(1)                                    NOT NULL DEFAULT 0,
+  created_at           DATETIME(6)                                   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (id),
-  KEY idx_dv_document_id (document_id),
-  KEY idx_dv_is_current  (document_id, is_current),
-  KEY idx_dv_based_on    (based_on_version_id),
+  KEY idx_dv_document_id    (document_id),
+  KEY idx_dv_is_current     (document_id, is_current),
+  KEY idx_dv_based_on       (based_on_version_id),
+  KEY idx_dv_drive_mapping  (drive_file_mapping_id),
   CONSTRAINT fk_dv_document
-    FOREIGN KEY (document_id)         REFERENCES documents(id)         ON DELETE CASCADE,
+    FOREIGN KEY (document_id)          REFERENCES documents(id)          ON DELETE CASCADE,
   CONSTRAINT fk_dv_created_by
-    FOREIGN KEY (created_by)          REFERENCES users(id)             ON DELETE SET NULL,
+    FOREIGN KEY (created_by)           REFERENCES users(id)              ON DELETE SET NULL,
   CONSTRAINT fk_dv_based_on
-    FOREIGN KEY (based_on_version_id) REFERENCES document_versions(id) ON DELETE SET NULL,
+    FOREIGN KEY (based_on_version_id)  REFERENCES document_versions(id)  ON DELETE SET NULL,
   CONSTRAINT fk_dv_merge_a
-    FOREIGN KEY (merge_from_a)        REFERENCES document_versions(id) ON DELETE SET NULL,
+    FOREIGN KEY (merge_from_a)         REFERENCES document_versions(id)  ON DELETE SET NULL,
   CONSTRAINT fk_dv_merge_b
-    FOREIGN KEY (merge_from_b)        REFERENCES document_versions(id) ON DELETE SET NULL
+    FOREIGN KEY (merge_from_b)         REFERENCES document_versions(id)  ON DELETE SET NULL
+  -- fk_dv_drive_mapping se agrega vía ALTER TABLE al final del schema (v1.1)
+  -- después de que drive_file_mappings quede definida.
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Trigger: garantiza que solo una versión sea is_current=1 por documento.
@@ -345,6 +351,60 @@ CREATE TABLE notifications (
   CONSTRAINT fk_notif_document
     FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── GOOGLE DRIVE INTEGRATION (v1.1) ─────────────────────────
+
+-- DriveConnection: almacena tokens OAuth2 cifrados por usuario/workspace.
+-- access_token y refresh_token se persisten cifrados con AES-256 en la capa de aplicación.
+-- Un usuario puede tener a lo sumo una conexión activa por workspace (UNIQUE user_id, workspace_id).
+CREATE TABLE drive_connections (
+  id               CHAR(36)     NOT NULL,
+  user_id          CHAR(36)     NOT NULL,
+  workspace_id     CHAR(36)     NOT NULL,
+  access_token     TEXT         NOT NULL,  -- cifrado AES-256 antes de persistir
+  refresh_token    TEXT         NOT NULL,  -- cifrado AES-256 antes de persistir
+  token_expires_at DATETIME(6),
+  scopes           VARCHAR(500) NOT NULL,
+  created_at       DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  revoked_at       DATETIME(6),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_dc_user_workspace (user_id, workspace_id),
+  KEY idx_dc_workspace (workspace_id),
+  CONSTRAINT fk_dc_user
+    FOREIGN KEY (user_id)      REFERENCES users(id)       ON DELETE CASCADE,
+  CONSTRAINT fk_dc_workspace
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id)  ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- DriveFileMapping: mapea un documento Versionly ↔ un archivo Google Drive.
+-- Relación 1:1 con documents (UNIQUE document_id): un documento solo puede estar
+-- vinculado a un único archivo de Drive a la vez.
+-- La importación es siempre intencional (iniciada por el usuario); no hay auto-sync en v1.1.
+CREATE TABLE drive_file_mappings (
+  id                      CHAR(36)      NOT NULL,
+  document_id             CHAR(36)      NOT NULL,
+  drive_connection_id     CHAR(36)      NOT NULL,
+  drive_file_id           VARCHAR(255)  NOT NULL,
+  drive_file_name         VARCHAR(500),
+  drive_web_link          VARCHAR(1000),
+  last_synced_at          DATETIME(6),
+  last_remote_modified_at DATETIME(6),
+  sync_enabled            TINYINT(1)    NOT NULL DEFAULT 1,
+  created_at              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_dfm_document (document_id),
+  KEY idx_dfm_connection (drive_connection_id),
+  CONSTRAINT fk_dfm_document
+    FOREIGN KEY (document_id)         REFERENCES documents(id)         ON DELETE CASCADE,
+  CONSTRAINT fk_dfm_connection
+    FOREIGN KEY (drive_connection_id) REFERENCES drive_connections(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- FK diferida: document_versions → drive_file_mappings (v1.1)
+-- Se aplica aquí porque drive_file_mappings debe existir antes de agregar la FK.
+ALTER TABLE document_versions
+  ADD CONSTRAINT fk_dv_drive_mapping
+    FOREIGN KEY (drive_file_mapping_id) REFERENCES drive_file_mappings(id) ON DELETE SET NULL;
 
 -- ── REFRESH TOKENS ───────────────────────────────────────────
 CREATE TABLE refresh_tokens (
